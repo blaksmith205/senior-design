@@ -5,17 +5,25 @@
 #define DEBUG   //If you comment this line, the DPRINT & DPRINTLN lines are defined as blank.
 #include "debug.h"
 
-#define PRINT_SPEED 250 // 250 ms between prints
+#define PRINT_SPEED 100 // 250 ms between prints
 static unsigned long lastPrint = 0; // Keep track of print time
 
+// Weights
+#define GYRO_WEIGHT .5
+#define ACCEL_WEIGHT 1 - GYRO_WEIGHT
+
 // Prototypes
-float calcAngle();
+void calcAngle();
+void calcGyroAngle(unsigned long);
+float fuseAngles();
 
 // Create the sensor
 LSM9DS1 imu;
 
 // Store the roll (rotation about x-axis) and pitch (rotation about y-axis)
 float roll, pitch;
+float gyroAngle;
+static unsigned long lastGyroRead; // Keep track of last time gyro data was read
 
 void setup() {
   Serial.begin(115200);
@@ -42,6 +50,8 @@ void loop() {
   if ( imu.gyroAvailable() )
   {
     imu.readGyro();
+    calcGyroAngle(millis() - lastGyroRead);
+    lastGyroRead = millis();
   }
   if ( imu.accelAvailable() )
   {
@@ -51,11 +61,7 @@ void loop() {
 
   if ((lastPrint + PRINT_SPEED) < millis())
   {
-    DPRINT("Roll: ");
-    DPRINT(roll);
-    DPRINT(" degrees\nPitch: ");
-    DPRINT(pitch);
-    DPRINT(" degrees\n");
+    DPRINT(fuseAngles());
     Serial.println();
 
     lastPrint = millis(); // Update lastPrint time
@@ -70,4 +76,14 @@ void calcAccelAngles(float ax, float ay, float az) {
   // Convert to degress
   roll *= RAD_TO_DEG;
   pitch *= RAD_TO_DEG;
+}
+
+void calcGyroAngle(unsigned long deltaTime) {
+  // Calculate the angle from the gyro. Use the y rotation because of mounting posistion and axis on sensor
+  gyroAngle = imu.calcGyro(imu.gy) * deltaTime;
+}
+
+float fuseAngles() {
+  // Use y-axis rotation based on mounting orientation and the sensor axis
+  return GYRO_WEIGHT * gyroAngle + ACCEL_WEIGHT * pitch;
 }
