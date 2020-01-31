@@ -1,6 +1,7 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <SparkFunLSM9DS1.h>
+#include <Servo.h>
 
 #define DEBUG   //If you comment this line, the DPRINT & DPRINTLN lines are defined as blank.
 #include "debug.h"
@@ -11,19 +12,33 @@ static unsigned long lastPrint = 0; // Keep track of print time
 // Weights
 #define GYRO_WEIGHT .5
 #define ACCEL_WEIGHT 1 - GYRO_WEIGHT
+#define kp 1.0 // Proportional constant
+#define ki 1.0 // Integral constant
+#define kd 1.0 // Derivative constant
+
+#define DESIRED_ANGLE 0
+#define TOLERANCE 5
+#define throttle 1300
 
 // Prototypes
 void calcAngle();
 void calcGyroAngle(float);
 float fuseAngles();
+void calcPid();
+float limitPid(float pid);
+float limitPwm(float pwm);
 
 // Create the sensor
 LSM9DS1 imu;
 
 // Store the roll (rotation about x-axis) and pitch (rotation about y-axis)
 float roll, pitch;
-float gyroAngle;
+float gyroAngle, curAngle;
+float angleError, prevError;
 static unsigned long lastGyroRead; // Keep track of last time gyro data was read
+float pid_p, pid_i, pid_d, PID, pwm_left, pwm_right;
+
+Servo left_motor, right_motor;
 
 void setup() {
   Serial.begin(115200);
@@ -43,6 +58,14 @@ void setup() {
   
   // Calibrate the Accelerometer
   imu.calibrate();
+
+  // Attach motors
+  left_motor.attach(3);
+  left_motor.writeMicroseconds(1000);
+  delay(5000); // Wait 2 seconds
+  right_motor.attach(5);
+  right_motor.writeMicroseconds(1000);
+  delay(5000); // Wait 2 seconds
 }
 
 void loop() {
@@ -61,11 +84,13 @@ void loop() {
 
   if ((lastPrint + PRINT_SPEED) < millis())
   {
-    DPRINT(fuseAngles());
     Serial.println();
 
     lastPrint = millis(); // Update lastPrint time
   }
+  
+  DPRINT(fuseAngles());
+  calcPid();
 }
 
 void calcAccelAngles(float ax, float ay, float az) {
@@ -86,4 +111,43 @@ void calcGyroAngle(float deltaTime) {
 float fuseAngles() {
   // Use y-axis rotation based on mounting orientation and the sensor axis
   return GYRO_WEIGHT * gyroAngle + ACCEL_WEIGHT * roll;
+}
+
+void calcPid() {
+  curAngle = fuseAngles();
+  angleError = curAngle - DESIRED_ANGLE;
+
+  // Calculate P of PID
+  pid_p = kp * angleError;
+
+  PID = limitPid(pid_p);
+  pwm_left = limitPwm(throttle - PID);
+  pwm_right = limitPwm(throttle + PID);
+
+  left_motor.writeMicroseconds(pwm_left);
+  right_motor.writeMicroseconds(pwm_right);
+}
+
+float limitPid(float pid){
+  if(pid < -1000)
+  {
+    pid = -1000;
+  }
+  if(pid > 1000)
+  {
+    pid = 1000;
+  }
+  return pid;
+}
+
+float limitPwm(float pwm){
+  if(pwm < 1000)
+  {
+    pwm = 1000;
+  }
+  if(pwm > 1500)
+  {
+    pwm = 1500;
+  }
+  return pwm;
 }
