@@ -14,7 +14,7 @@ static unsigned long lastPrint = 0; // Keep track of print time
 
 // Prototypes
 void calcAngle();
-void calcGyroAngle(unsigned long);
+void calcGyroAngle(float);
 float fuseAngles();
 
 // Create the sensor
@@ -50,7 +50,7 @@ void loop() {
   if ( imu.gyroAvailable() )
   {
     imu.readGyro();
-    calcGyroAngle(millis() - lastGyroRead);
+    calcGyroAngle((millis() - lastGyroRead) / 1000);
     lastGyroRead = millis();
   }
   if ( imu.accelAvailable() )
@@ -78,12 +78,12 @@ void calcAccelAngles(float ax, float ay, float az) {
   pitch *= RAD_TO_DEG;
 }
 
-void calcGyroAngle(unsigned long deltaTime) {
+void calcGyroAngle(float deltaTime) {
   // Calculate the angle from the gyro. Use the y rotation because of mounting posistion and axis on sensor
-  gyroAngle = imu.calcGyro(imu.gy) * deltaTime;
+  gyroAngle = imu.calcGyro(imu.gx) * deltaTime;
 }
 
 float fuseAngles() {
   // Use y-axis rotation based on mounting orientation and the sensor axis
-  return GYRO_WEIGHT * gyroAngle + ACCEL_WEIGHT * pitch;
+  return GYRO_WEIGHT * gyroAngle + ACCEL_WEIGHT * roll;
 }
