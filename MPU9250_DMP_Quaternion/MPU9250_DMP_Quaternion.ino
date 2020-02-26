@@ -34,9 +34,6 @@ struct EulerAngles {
 
 EulerAngles angles;
 
-float rollScaled, pitchScaled, yawScaled;
-
-
 void setup() 
 {
   SerialPort.begin(115200);
@@ -71,9 +68,9 @@ void loop()
     {
       // computeEulerAngles can be used -- after updating the
       // quaternion values -- to estimate roll, pitch, and yaw
-      imu.computeEulerAngles();
-      printData(imu.pitch, imu.roll, imu.yaw);
-      calcEulerAngles();
+      //imu.computeEulerAngles(); Logic Error
+      //printData(imu.pitch, imu.roll, imu.yaw);
+      calcEulerAngles();  // better logic
       printData(degrees(angles.roll), degrees(angles.pitch), degrees(angles.yaw));
     }
   }
@@ -81,27 +78,13 @@ void loop()
 
 void printData(float p, float r, float y)
 { 
-  //rollScaled = scaleAngle(imu.roll);
-  //pitchScaled = scaleAngle(imu.pitch);
-  //yawScaled = scaleAngle(imu.yaw);
-  
   SerialPort.println("R/P/Y: " + String(r) + ", "
             + String(p) + ", " + String(y));
   SerialPort.println();
 }
 
-float scaleAngle(float eularAngle)
-{
-  if (eularAngle < ERROR_TOLERANCE || eularAngle > 360 - ERROR_TOLERANCE )
-    return 0;
-  if (eularAngle > 180)
-    return (eularAngle - 360) * ERROR_SCALE;
-  else
-    return eularAngle * ERROR_SCALE;
-}
-
 void calcEulerAngles() {
-
+    // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
     float dqw = imu.calcQuat(imu.qw);
     float dqx = imu.calcQuat(imu.qx);
     float dqy = imu.calcQuat(imu.qy);
