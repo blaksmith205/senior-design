@@ -8,19 +8,19 @@ extern char receivedChars[];
 extern char tempChars[];
 
 //Motor constants
-static const int MOTOR_OUT_MIN = 1100;
+static const int MOTOR_OUT_MIN = 1200;
 static const int MOTOR_OUT_MAX = 1450;
-static const int throttle = 1275;
+static const int throttle = 1325;
 static const float ANGLE = 7.0f;
 
 // PI
 double k_p = 0.5;
-double k_i = 0.075;
+double k_i = 0.002;
 float pid_p; // Proportional part of the PID per axis (x, y)
 float pid_i; // Integral part of the PID per axis (x, y)
-float PID; // Total PID values per axis (x, y)
+float PID;   // Total PID values per axis (x, y)
 float leftPWM, rightPWM;
-float prevAngleError, curAngleError, desiredAngle= 6.0f;
+float prevAngleError, curAngleError, desiredAngle = 0.0f;
 
 Servo rMotor, lMotor;
 
@@ -33,8 +33,8 @@ void setup()
   Serial.begin(1000000);
   rMotor.attach(3); // right motor
   lMotor.attach(5); // left motor
-  rMotor.writeMicroseconds(MOTOR_OUT_MIN);
-  lMotor.writeMicroseconds(MOTOR_OUT_MIN);
+  rMotor.writeMicroseconds(1100);
+  lMotor.writeMicroseconds(1100);
   delay(2000);
   while (!Serial)
   {
@@ -83,16 +83,12 @@ float limitPWM(float pwm)
 void calcPI()
 {
   curAngleError = angles.pitch - desiredAngle;
-  // PID Calculation
+  // PI Calculation
   // Proportional
   pid_p = k_p * curAngleError;
 
   // Integral
-  // Only function on small angles to tune the error
-  if (curAngleError > -2.0 && curAngleError < 2.0)
-  {
-    pid_i = pid_i + (k_i * curAngleError);
-  }
+  pid_i = pid_i + (k_i * curAngleError);
 
   // Total PID is sum of all PIDs, and limit the pid to proper values
   PID = pid_p + pid_i;
